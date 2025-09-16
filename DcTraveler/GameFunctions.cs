@@ -140,9 +140,9 @@ namespace DcTraveler
                 key = key + "=";
             }
             var gameWindow = Framework.Instance()->GameWindow;
-            for (var i = 0UL; i < gameWindow->ArgumentCount; i++)
+            for (var i = 0; i < gameWindow->ArgumentCount; i++)
             {
-                var arg = gameWindow->GetArgument(i);
+                var arg = gameWindow->Arguments[i].ToString();
                 if (arg.StartsWith(key, StringComparison.OrdinalIgnoreCase))
                 {
                     return arg.Substring(key.Length);
@@ -155,7 +155,7 @@ namespace DcTraveler
             var ptr = Plugin.GameGui.GetAddonByName("_TitleMenu", 1);
             if (ptr == 0)
                 return;
-            var atkUnitBase = (AtkUnitBase*)ptr;
+            var atkUnitBase = (AtkUnitBase*)ptr.Address;
             var loginGameButton = atkUnitBase->GetComponentButtonById(4);
             var loginGameButtonEvent = loginGameButton->AtkResNode->AtkEventManager.Event;
             Plugin.Framework.RunOnFrameworkThread(() => atkUnitBase->ReceiveEvent(AtkEventType.ButtonClick, 1, loginGameButtonEvent));

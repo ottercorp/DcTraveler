@@ -1,5 +1,5 @@
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -59,9 +59,9 @@ namespace DcTraveler.Windows
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length, 4);
+                ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length);
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[currentDcIndex].Length, 7);
+                ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[currentDcIndex].Length);
                 ImGui.EndTable();
             }
 
@@ -74,9 +74,9 @@ namespace DcTraveler.Windows
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##TargettDc", ref targetDcIndex, dc, dc.Length, 4);
+                ImGui.ListBox("##TargettDc", ref targetDcIndex, dc, dc.Length);
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length, 7);
+                ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length);
                 ImGui.EndTable();
             }
             var sameDc = (currentDcIndex == targetDcIndex);

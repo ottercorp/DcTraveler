@@ -6,7 +6,7 @@
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/Loskh/DcTraveler",
   "LoadPriority": 0,
-  "DalamudApiLevel": 12,
+  "DalamudApiLevel": 13,
   "Tags": [
     "UI"
   ]

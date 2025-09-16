@@ -2,7 +2,7 @@ using Dalamud.Utility;
 using FFXIVClientStructs;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using Serilog;
 using System;
@@ -29,7 +29,7 @@ namespace DcTraveler.GameUi
 
         public static unsafe void Close()
         {
-            var addonLobbyDKT = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("LobbyDKT");
+            var addonLobbyDKT = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("LobbyDKT").Address;
             if (addonLobbyDKT != null)
             {
                 addonLobbyDKT->Close(true);
@@ -37,7 +37,7 @@ namespace DcTraveler.GameUi
         }
         public static unsafe void SetMessage(string message)
         {
-            var addonLobbyDKT = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("LobbyDKT");
+            var addonLobbyDKT = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("LobbyDKT").Address;
             if (addonLobbyDKT != null) {
                 addonLobbyDKT->AtkValues[0].SetManagedString(message);
                 addonLobbyDKT->OnRefresh(addonLobbyDKT->AtkValuesCount, addonLobbyDKT->AtkValues);

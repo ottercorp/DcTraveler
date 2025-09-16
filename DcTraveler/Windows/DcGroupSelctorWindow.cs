@@ -1,7 +1,7 @@
 using Dalamud.Interface.Utility.Table;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Serilog;
 using System;
 using System.Collections.Generic;
