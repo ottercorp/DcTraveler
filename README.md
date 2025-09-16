@@ -1,76 +1,21 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, just [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
-
-# SamplePlugin
-
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
-
-
-Simple example plugin for Dalamud.
-
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
-
-## Main Points
-
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
-
-
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
-
-## How To Use
-
-### Getting Started
-
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
-
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
-
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-development/plugin-submission
-
-### Prerequisites
-
-SamplePlugin assumes all the following prerequisites are met:
-
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
-
-### Building
-
-1. Open up `SamplePlugin.sln` in your C# editor of choice (likely [Visual Studio 2022](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `SamplePlugin/bin/x64/Debug/SamplePlugin.dll` (or `Release` if appropriate.)
-
-### Activating in-game
-
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `SamplePlugin.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `SamplePlugin` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
-
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
-
-### Reconfiguring for your own uses
-
-Basically, just replace all references to `SamplePlugin` in all of the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
-
-Dalamud will load the JSON file (by default, `SamplePlugin/SamplePlugin.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!
+# FFXIV国服游戏内跨大区插件
+## 使用方法
+- XL内打开Dalamud选项卡的`启用跨域传送`和`启用Dalamud`
+![6360a0e33214c241f1c9f2bb9bbde1c4](https://github.com/user-attachments/assets/d13f1213-3c2d-4d78-8e70-9318956b40a0)
+![6d455ff821e5c45ea5610bcc19182458](https://github.com/user-attachments/assets/e540b371-86d1-49b7-84bb-953e34d604a0)
+- 进入游戏后打开插件管理器，安装DcTraveler，现已合入国服主库，不需额外添加第三方库地址
+- 在角色选择界面右键角色，即可进行跨域传送/返回
+- 在标题画面将鼠标移至左上角，可以切换当前大区
+![512a6e71aaa70b5767f1ab8b73ceac62](https://github.com/user-attachments/assets/8981be4d-768e-45fb-b01a-a68f5a482317)
+## 功能原理说明
+本功能通过模拟正常浏览器登录行为，登录官网超域传送页面，获取临时会话凭证（Cookie），模拟网页请求，从而进行超越传送/返回。
+此过程仅在本地完成，不会上传您的凭据至任何第三方服务器（包括本工具开发者的服务器）。
+## 注意事项
+本工具的操作不会超出官方超域传送网站的范畴，一切操作皆遵循用户行为。
+但是由于程序的不稳定性和官方API的变更可能，因此存在传送失败的可能性。
+如传送失败，请登录官方超域传送服务网站进行人工操作。一切角色状态和操作结果以官方网站为准。
+在刷新切换大区过程中，若开启了本工具的自动登录功能，那么可能会因为自动登录而在叨鱼App中产生新的登录记录，这属于正常现象。
+## 声明
+本工具不会将Cookie写入本地硬盘或其他永久性存储设备。所有Cookie信息仅临时存储于内存中，并在程序关闭时自动注销Cookie。
+使用本工具即表示您同意授权工具访问您的账号。请确保仅在可信任环境下使用，并使用手机叨鱼App开启相关安全设置。
+尽管采取加密措施，Cookie 数据在传输过程中仍存在被拦截的理论风险。建议仅在安全网络环境和信任设备下使用本工具。
