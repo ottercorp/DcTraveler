@@ -212,14 +212,15 @@ public sealed class Plugin : IDalamudPlugin
                     var chara = new Character() { ContentId = contentId.ToString(), Name = currentCharacterName };
                     targetDcGroupName = selectWorld.Target.AreaName;
                     Log.Information($"正在传送:{currentWorld.Name}@{currentDcGroupName} -> {selectWorld.Target.GroupName}@{targetDcGroupName}");
-                    var waitTime = await DcTravelClient.QueryTravelQueueTime(selectWorld.Target.AreaId, selectWorld.Target.GroupId);
-                    if (waitTime > 0)
-                    {
-                        // e.queueTime > 0 ? "(预计需" + parseInt(30 * (parseInt(e.queueTime / 30) + 1)) + "分钟内)" : "(无需等待)")
-                        estimatedTime = (waitTime / 30 + 1) * 30;
-                    }
-                    Log.Info($"预计花费时间:{estimatedTime} 分钟");
-                    var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"预计时间:{estimatedTime} 分钟内", MessageBoxType.YesNo);
+                    //var waitTime = await DcTravelClient.QueryTravelQueueTime(selectWorld.Target.AreaId, selectWorld.Target.GroupId);
+                    //if (waitTime > 0)
+                    //{
+                    //    // e.queueTime > 0 ? "(预计需" + parseInt(30 * (parseInt(e.queueTime / 30) + 1)) + "分钟内)" : "(无需等待)")
+                    //    estimatedTime = (waitTime / 30 + 1) * 30;
+                    //}
+                    //Log.Info($"预计花费时间:{estimatedTime} 分钟");
+                    //var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"预计时间:{estimatedTime} 分钟内", MessageBoxType.YesNo);
+                    var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"是否进行跨域传送?", MessageBoxType.YesNo);
                     if (costMsgBox == MessageBoxResult.Yes)
                     {
                         await Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
