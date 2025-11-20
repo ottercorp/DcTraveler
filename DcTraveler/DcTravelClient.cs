@@ -15,6 +15,8 @@ namespace DcTraveler
 {
     public class Area
     {
+        [JsonPropertyName("state")]
+        public int State { get; set; }
         [JsonPropertyName("areaId")]
         public int AreaId { get; set; }
         [JsonPropertyName("areaName")]
@@ -158,7 +160,7 @@ namespace DcTraveler
                 return (T)Convert.ChangeType(rpcResponse.Result, typeof(T));
             }
         }
-        public async Task<List<Area>> QueryGroupListTravelSource()
+        public async Task<List<Area>> QueryGroupListTravelSource()          
         {
             return await RequestApi<List<Area>>(new object[] { });
         }

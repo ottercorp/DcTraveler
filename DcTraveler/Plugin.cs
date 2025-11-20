@@ -183,14 +183,16 @@ public sealed class Plugin : IDalamudPlugin
                 var orderId = string.Empty;
                 var targetDcGroupName = string.Empty;
                 var estimatedTime = 0;
+                var currentGroup = DcTravelClient.CachedAreas.First(x => x.AreaName == currentDcGroupName).GroupList.First(x => x.GroupCode == currentWorld.InternalName.ToString());
+
                 if (isBack)
                 {
                     var targetWorld = worldSheet.GetRow((uint)targetWorldId);
                     targetDcGroupName = targetWorld.DataCenter.Value.Name.ToString();
-                    var currentGroup = DcTravelClient.CachedAreas.First(x => x.AreaName == currentDcGroupName).GroupList.First(x => x.GroupCode == currentWorld.InternalName.ToString());
+                    var targetGroup = DcTravelClient.CachedAreas.First(x => x.AreaName == targetDcGroupName).GroupList.First(x => x.GroupCode == targetWorld.InternalName.ToString());
                     if (needSelectCurrentWorld)
                     {
-                        var selectWorld = await WorldSelectorWindows.OpenTravelWindow(true, false, true, DcTravelClient.CachedAreas, currentDcGroupName, currentGroup.GroupCode, targetDcGroupName, currentWorld.Name.ToString());
+                        var selectWorld = await WorldSelectorWindows.OpenTravelWindow(true, false, true, DcTravelClient.CachedAreas, sourceGroup:currentGroup,targetGroup:targetGroup);
                         if (selectWorld == null)
                         {
                             return;
@@ -202,15 +204,21 @@ public sealed class Plugin : IDalamudPlugin
                     order = GetTravelingOrder(contentId);
                     Log.Information($"Find back order: {order.OrderId}");
                     await Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                    orderId = await DcTravelClient.TravelBack(order.OrderId, currentGroup.GroupId, currentGroup.GroupCode, currentGroup.GroupName);
+                    orderId = await DcTravelClient.TravelBack(order.OrderId, currentGroup!.GroupId, currentGroup.GroupCode, currentGroup.GroupName);
                     Log.Information($"Get an order: {orderId}");
                 }
                 else
                 {
-                    var areas = await DcTravelClient.QueryGroupListTravelTarget(7, 5);
-                    var selectWorld = await WorldSelectorWindows.OpenTravelWindow(false, true, false, areas, currentDcGroupName, currentWorld.InternalName.ToString());
+                    //Log.Information($"{currentGroup.AreaId} {currentGroup.GroupName} {currentDcGroupName}");
+                    var areas = await DcTravelClient.QueryGroupListTravelTarget(currentGroup.AreaId, -1);
+                    var selectWorld = await WorldSelectorWindows.OpenTravelWindow(false, true, false, in areas, sourceGroup:currentGroup);
                     var chara = new Character() { ContentId = contentId.ToString(), Name = currentCharacterName };
-                    targetDcGroupName = selectWorld.Target.AreaName;
+                    if (selectWorld.Target is null)
+                    {
+                        Log.Info($"没选目标");
+                        return;
+                    }
+                    targetDcGroupName = selectWorld!.Target!.AreaName;
                     Log.Information($"正在传送:{currentWorld.Name}@{currentDcGroupName} -> {selectWorld.Target.GroupName}@{targetDcGroupName}");
                     //var waitTime = await DcTravelClient.QueryTravelQueueTime(selectWorld.Target.AreaId, selectWorld.Target.GroupId);
                     //if (waitTime > 0)
@@ -223,8 +231,8 @@ public sealed class Plugin : IDalamudPlugin
                     var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"是否进行跨域传送?", MessageBoxType.YesNo);
                     if (costMsgBox == MessageBoxResult.Yes)
                     {
+                        orderId = await DcTravelClient.TravelOrder(selectWorld.Target, currentGroup, chara);
                         await Framework.RunOnFrameworkThread(GameFunctions.ReturnToTitle);
-                        orderId = await DcTravelClient.TravelOrder(selectWorld.Target, selectWorld.Source, chara);
                         Log.Information($"Get an order: {orderId}");
                     }
                     else

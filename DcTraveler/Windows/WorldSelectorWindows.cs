@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using static FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer;
+using Dalamud.Interface.Utility.Raii;
 
 namespace DcTraveler.Windows
 {
@@ -20,8 +21,8 @@ namespace DcTraveler.Windows
 
     public class SelectWorldResult
     {
-        public Group Source { get; set; }
-        public Group Target { get; set; }
+        public Group? Source { get; set; }
+        public Group? Target { get; set; }
     }
     internal class WorldSelectorWindows : Window, IDisposable
     {
@@ -32,14 +33,17 @@ namespace DcTraveler.Windows
         private bool showSourceWorld = true;
         private bool showTargetWorld = true;
         private bool isBack = false;
-        private int currentDcIndex = 0;
-        private int currentWorldIndex = 0;
-        private string[] dc = new string[0];
-        private List<string[]> world = new();
-        private int targetDcIndex = 0;
-        private int targetWorldIndex = 0;
+        //private int currentDcIndex = 0;
+        //private int currentWorldIndex = 0;
+        //private int targetDcIndex = 0;
+        //private int targetWorldIndex = 0;
         private List<Area> areas = new();
-
+        private int sourceAreaIndex = -1;
+        private int sourceServerIndex = -1;
+        private int targetAreaIndex = -1;
+        private int targetServerIndex = -1;
+        private static readonly string[] DcStates = { "通畅", "热门", "火爆" };
+        private static readonly Vector4[] DcStatesColor = { new Vector4(0, 255, 0, 255), new Vector4(255, 255, 0, 255), new Vector4(255, 0, 0, 255) };
         public override void PreDraw()
         {
             var viewport = ImGui.GetMainViewport();
@@ -50,54 +54,107 @@ namespace DcTraveler.Windows
         }
         public override void Draw()
         {
+            var dcColumnWidth = ImGui.CalcTextSize("猫小胖 (火爆)").Length() * 1.2f;
+            var serverColumnWidth = ImGui.CalcTextSize("海猫茶屋").Length() * 1.2f;
+            var height = ImGui.GetTextLineHeightWithSpacing() * 8 * 1.2f;
+
             if (showSourceWorld)
             {
-                ImGui.BeginTable("##TableCurrent", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
+                using var table = ImRaii.Table("##TableSource", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
+
                 ImGui.TableSetupColumn("当前大区", ImGuiTableColumnFlags.WidthFixed, 100);
                 ImGui.TableSetupColumn("当前服务器", ImGuiTableColumnFlags.WidthFixed, 300);
                 ImGui.TableHeadersRow();
-
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentDc", ref currentDcIndex, dc, dc.Length);
+                using (_ = ImRaii.ListBox("##TargetDc", new Vector2(dcColumnWidth, height)))
+                {
+                    for (var i = 0; i < this.areas.Count; i++)
+                    {
+                        if (ImGui.Selectable(this.areas[i].AreaName, i == this.sourceAreaIndex))
+                        {
+                            this.sourceAreaIndex = i;
+                        }
+                    }
+                }
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##CurrentServer", ref currentWorldIndex, world[currentDcIndex], world[currentDcIndex].Length);
-                ImGui.EndTable();
+                using (_ = ImRaii.ListBox("##TargetServer", new Vector2(serverColumnWidth, height)))
+                {
+                    for (var i = 0; i < this.areas[this.sourceAreaIndex].GroupList.Count; i++)
+                    {
+                        if (ImGui.Selectable(this.areas[this.sourceAreaIndex].GroupList[i].GroupName, i == this.sourceServerIndex))
+                        {
+                            this.sourceServerIndex = i;
+                        }
+                    }
+                }
             }
 
             if (showTargetWorld)
             {
-                ImGui.BeginTable("##TableCurrent", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
-                ImGui.TableSetupColumn("目标大区", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, 300);
-                ImGui.TableHeadersRow();
+                using var table = ImRaii.Table("##TableTarget", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoBordersInBodyUntilResize);
 
+                ImGui.TableSetupColumn("目标大区", ImGuiTableColumnFlags.WidthFixed, dcColumnWidth);
+                ImGui.TableSetupColumn("目标服务器", ImGuiTableColumnFlags.WidthFixed, serverColumnWidth);
+                ImGui.TableHeadersRow();
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.ListBox("##TargettDc", ref targetDcIndex, dc, dc.Length);
-                ImGui.TableNextColumn();
-                ImGui.ListBox("##TargetServer", ref targetWorldIndex, world[targetDcIndex], world[targetDcIndex].Length);
-                ImGui.EndTable();
-            }
-            var sameDc = (currentDcIndex == targetDcIndex);
-            if (sameDc)
-            {
-                ImGui.BeginDisabled();
-            }
-            if (ImGui.Button(isBack ? "返回" : "传送"))
-            {
-                this.selectWorldTaskCompletionSource?.SetResult(
-                    new SelectWorldResult()
+                using (_ = ImRaii.ListBox("##TargetDc", new Vector2(dcColumnWidth, height)))
+                {
+                    for (var i = 0; i < this.areas.Count; i++)
                     {
-                        Source = areas[currentDcIndex].GroupList[currentWorldIndex],
-                        Target = areas[targetDcIndex].GroupList[targetWorldIndex]
-                    });
-                this.IsOpen = false;
+                        using var _ = ImRaii.Disabled(this.areas[i].State == 2);
+                        using var color = ImRaii.PushColor(ImGuiCol.Text, DcStatesColor[this.areas[i].State]);
+                        if (ImGui.Selectable($"{this.areas[i].AreaName} ({DcStates[this.areas[i].State]})", i == this.targetAreaIndex))
+                        {
+                            this.targetAreaIndex = i;
+                        }
+                    }
+                }
+                ImGui.TableNextColumn();
+                using (_ = ImRaii.ListBox("##TargetServer", new Vector2(serverColumnWidth, height)))
+                {
+                    for (var i = 0; i < this.areas[this.targetAreaIndex].GroupList.Count; i++)
+                    {
+                        using var _ = ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2);
+                        //using var color = ImRaii.PushColor(ImGuiCol.Text, DcStatesColor[this.areas[this.targetAreaIndex].State]);
+                        if (ImGui.Selectable(this.areas[this.targetAreaIndex].GroupList[i].GroupName, i == this.targetServerIndex))
+                        {
+                            this.targetServerIndex = i;
+                        }
+                    }
+                }
             }
-            if (sameDc)
+            using (ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2))
             {
-                ImGui.EndDisabled();
+                if (ImGui.Button(isBack ? "返回" : "传送"))
+                {
+                    Group? currentGroup = null;
+                    if (this.sourceAreaIndex >= 0 && this.sourceAreaIndex < this.areas.Count)
+                    {
+                        if (this.sourceServerIndex >= 0 && this.sourceServerIndex < this.areas[this.sourceAreaIndex].GroupList.Count)
+                        {
+                            currentGroup = this.areas[this.sourceAreaIndex].GroupList[this.sourceServerIndex];
+                        }
+                    }
+                    Group? targetGroup = null;
+                    if (this.targetAreaIndex >= 0 && this.targetAreaIndex < this.areas.Count)
+                    {
+                        if (this.targetServerIndex >= 0 && this.targetServerIndex < this.areas[this.targetAreaIndex].GroupList.Count)
+                        {
+                            targetGroup = this.areas[this.targetAreaIndex].GroupList[this.targetServerIndex];
+                        }
+                    }
+                    this.selectWorldTaskCompletionSource?.SetResult(
+                        new SelectWorldResult()
+                        {
+                            Source = currentGroup,
+                            Target = targetGroup
+                        });
+                    this.IsOpen = false;
+                }
             }
+
             ImGui.SameLine();
             if (ImGui.Button("取消"))
             {
@@ -105,35 +162,46 @@ namespace DcTraveler.Windows
                 this.IsOpen = false;
             }
         }
+
         private TaskCompletionSource<SelectWorldResult>? selectWorldTaskCompletionSource;
-        public Task<SelectWorldResult> OpenTravelWindow(bool showSourceWorld, bool showTargetWorld, bool isBack, List<Area> areas, string? currentDcName = null, string? currentWorldCode = null, string? targetDcName = null, string? targetWorldCode = null)
+        public Task<SelectWorldResult> OpenTravelWindow(bool showSourceWorld, bool showTargetWorld, bool isBack, ref readonly List<Area> areas, Group? sourceGroup = null, Group? targetGroup = null)
         {
             this.selectWorldTaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
             this.areas = areas;
             this.showSourceWorld = showSourceWorld;
             this.showTargetWorld = showTargetWorld;
             this.isBack = isBack;
-            this.currentDcIndex = 0;
-            this.currentWorldIndex = 0;
-            this.targetDcIndex = 0;
-            this.targetWorldIndex = 0;
-            this.dc = new string[areas.Count];
-            for (int i = 0; i < areas.Count; i++)
+
+            this.sourceAreaIndex = this.areas.FindIndex(x => x.AreaId == sourceGroup?.AreaId);
+            if (this.sourceAreaIndex == -1)
             {
-                this.dc[i] = areas[i].AreaName;
-                this.world.Add(new string[areas[i].GroupList.Count]);
-                if (currentDcName == areas[i].AreaName)
-                    this.currentDcIndex = i;
-                else if (targetDcName == areas[i].AreaName)
-                    this.targetDcIndex = i;
-                for (int j = 0; j < areas[i].GroupList.Count; j++)
+                this.sourceAreaIndex = 0;
+                this.sourceServerIndex = 0;
+            }
+            else
+            {
+                this.sourceServerIndex = this.areas[this.sourceAreaIndex].GroupList.FindIndex(x => x.GroupId == sourceGroup?.GroupId);
+                this.sourceServerIndex = this.sourceServerIndex == -1 ? 0 : this.sourceServerIndex;
+            }
+
+            this.targetAreaIndex = this.areas.FindIndex(x => x.AreaId == targetGroup?.AreaId);
+            if (this.targetAreaIndex == -1)
+            {
+                for (this.targetAreaIndex = 0; this.targetAreaIndex < areas.Count; this.targetAreaIndex++)
                 {
-                    this.world[i][j] = areas[i].GroupList[j].GroupName;
-                    if (currentDcName == areas[i].AreaName && areas[i].GroupList[j].GroupCode == currentWorldCode)
-                        this.currentWorldIndex = j;
-                    else if (targetDcName == areas[i].AreaName && areas[i].GroupList[j].GroupCode == targetWorldCode)
-                        this.targetWorldIndex = j;
+                    var area = areas[this.targetAreaIndex];
+                    if (area.State != 2)
+                    {
+                        break;
+                    }
                 }
+                //this.targetAreaIndex = 0;
+                this.targetServerIndex = 0;
+            }
+            else
+            {
+                this.targetServerIndex = this.areas[this.targetAreaIndex].GroupList.FindIndex(x => x.GroupId == targetGroup?.GroupId);
+                this.targetServerIndex = this.targetServerIndex == -1 ? 0 : this.targetServerIndex;
             }
             this.IsOpen = true;
             return this.selectWorldTaskCompletionSource.Task;
