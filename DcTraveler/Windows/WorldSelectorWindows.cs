@@ -42,7 +42,7 @@ namespace DcTraveler.Windows
         private int sourceServerIndex = -1;
         private int targetAreaIndex = -1;
         private int targetServerIndex = -1;
-        private static readonly string[] DcStates = { "通畅", "热门", "火爆" };
+        private static readonly string[] DcStates = { "通畅", "热门", "火爆?" };
         private static readonly Vector4[] DcStatesColor = { new Vector4(0, 255, 0, 255), new Vector4(255, 255, 0, 255), new Vector4(255, 0, 0, 255) };
         public override void PreDraw()
         {
@@ -103,7 +103,7 @@ namespace DcTraveler.Windows
                 {
                     for (var i = 0; i < this.areas.Count; i++)
                     {
-                        using var _ = ImRaii.Disabled(this.areas[i].State == 2);
+                        //using var _ = ImRaii.Disabled(this.areas[i].State == 2);
                         using var color = ImRaii.PushColor(ImGuiCol.Text, DcStatesColor[this.areas[i].State]);
                         if (ImGui.Selectable($"{this.areas[i].AreaName} ({DcStates[this.areas[i].State]})", i == this.targetAreaIndex))
                         {
@@ -116,7 +116,7 @@ namespace DcTraveler.Windows
                 {
                     for (var i = 0; i < this.areas[this.targetAreaIndex].GroupList.Count; i++)
                     {
-                        using var _ = ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2);
+                        //using var _ = ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2);
                         //using var color = ImRaii.PushColor(ImGuiCol.Text, DcStatesColor[this.areas[this.targetAreaIndex].State]);
                         if (ImGui.Selectable(this.areas[this.targetAreaIndex].GroupList[i].GroupName, i == this.targetServerIndex))
                         {
@@ -125,35 +125,35 @@ namespace DcTraveler.Windows
                     }
                 }
             }
-            using (ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2))
+            //using (ImRaii.Disabled(this.areas[this.targetAreaIndex].State == 2))
+            //{
+            if (ImGui.Button(isBack ? "返回" : "传送"))
             {
-                if (ImGui.Button(isBack ? "返回" : "传送"))
+                Group? currentGroup = null;
+                if (this.sourceAreaIndex >= 0 && this.sourceAreaIndex <  this.areas.Count)
                 {
-                    Group? currentGroup = null;
-                    if (this.sourceAreaIndex >= 0 && this.sourceAreaIndex < this.areas.Count)
+                    if (this.sourceServerIndex >= 0 && this.sourceServerIndex < this.areas[this.sourceAreaIndex].GroupList.Count)
                     {
-                        if (this.sourceServerIndex >= 0 && this.sourceServerIndex < this.areas[this.sourceAreaIndex].GroupList.Count)
-                        {
-                            currentGroup = this.areas[this.sourceAreaIndex].GroupList[this.sourceServerIndex];
-                        }
+                        currentGroup = this.areas[this.sourceAreaIndex].GroupList[this.sourceServerIndex];
                     }
-                    Group? targetGroup = null;
-                    if (this.targetAreaIndex >= 0 && this.targetAreaIndex < this.areas.Count)
-                    {
-                        if (this.targetServerIndex >= 0 && this.targetServerIndex < this.areas[this.targetAreaIndex].GroupList.Count)
-                        {
-                            targetGroup = this.areas[this.targetAreaIndex].GroupList[this.targetServerIndex];
-                        }
-                    }
-                    this.selectWorldTaskCompletionSource?.SetResult(
-                        new SelectWorldResult()
-                        {
-                            Source = currentGroup,
-                            Target = targetGroup
-                        });
-                    this.IsOpen = false;
                 }
+                Group? targetGroup = null;
+                if (this.targetAreaIndex >= 0 && this.targetAreaIndex < this.areas.Count)
+                {
+                    if (this.targetServerIndex >= 0 && this.targetServerIndex < this.areas[this.targetAreaIndex].GroupList.Count)
+                    {
+                        targetGroup = this.areas[this.targetAreaIndex].GroupList[this.targetServerIndex];
+                    }
+                }
+                this.selectWorldTaskCompletionSource?.SetResult(
+                    new SelectWorldResult()
+                    {
+                        Source = currentGroup,
+                        Target = targetGroup
+                    });
+                this.IsOpen = false;
             }
+            //}
 
             ImGui.SameLine();
             if (ImGui.Button("取消"))
@@ -187,15 +187,15 @@ namespace DcTraveler.Windows
             this.targetAreaIndex = this.areas.FindIndex(x => x.AreaId == targetGroup?.AreaId);
             if (this.targetAreaIndex == -1)
             {
-                for (this.targetAreaIndex = 0; this.targetAreaIndex < areas.Count; this.targetAreaIndex++)
-                {
-                    var area = areas[this.targetAreaIndex];
-                    if (area.State != 2)
-                    {
-                        break;
-                    }
-                }
-                //this.targetAreaIndex = 0;
+                //for (this.targetAreaIndex = 0; this.targetAreaIndex < areas.Count; this.targetAreaIndex++)
+                //{
+                //    var area = areas[this.targetAreaIndex];
+                //    if (area.State != 2)
+                //    {
+                //        break;
+                //    }
+                //}
+                this.targetAreaIndex = 0;
                 this.targetServerIndex = 0;
             }
             else
