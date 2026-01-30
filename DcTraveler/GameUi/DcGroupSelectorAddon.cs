@@ -19,8 +19,12 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
     private const float RowHeight = 24f;
 
     private static Plugin? pendingPlugin;
+    private static DcGroupSelectorAddon? CurrentInstance;
     private VerticalListNode? rootNode;
     private List<Area> areas = new();
+    private readonly List<SimpleNineGridNode> overlayNodes = new();
+    private readonly List<IconImageNode> bgImageNodes = new();
+    private readonly Dictionary<IconImageNode, uint> originalIconIds = new();
 
     protected override void OnSetup(AtkUnitBase* addon)
     {
@@ -32,8 +36,8 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
             FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Device.Instance()->Height
         );
         var centerPosition = new System.Numerics.Vector2(
-            screenSize.X / 8f,
-            screenSize.Y / 8f
+            (screenSize.X / 2f) - (WindowWidth / 2f),
+            (screenSize.Y / 2f) - (WindowHeight / 2f)
         );
         SetWindowPosition(centerPosition);
 
@@ -94,18 +98,87 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
         };
 
         float columnWidth = (ContentSize.X - (ColumnSpacing * (areas.Count - 1))) / areas.Count;
+        var bgSize = Math.Min(columnWidth, ContentSize.Y); // Square size
+        float currentX = 0;
+
+        overlayNodes.Clear();
+        bgImageNodes.Clear();
+        originalIconIds.Clear();
+
+        // 5% chance to show easter egg icons
+        var useEasterEgg = Random.Shared.NextDouble() < 0.05;
+        uint[] easterEggIcons = [234003u, 234742u];
+        if (useEasterEgg)
+        {
+            Random.Shared.Shuffle(easterEggIcons);
+            WindowNode?.SetTitle("河狸选择");
+        }
+        var easterEggIndex = 0;
 
         foreach (var area in areas)
         {
-            var columnNode = CreateAreaColumn(area, columnWidth);
+            // Background image
+            uint iconId;
+            if (useEasterEgg)
+            {
+                iconId = easterEggIcons[easterEggIndex % easterEggIcons.Length];
+                easterEggIndex++;
+            }
+            else
+            {
+                iconId = area.AreaId switch
+                {
+                    1 => 234006u,
+                    6 => 234001u,
+                    7 => 234002u,
+                    8 => 234022u,
+                    _ => 234003u, // default
+                };
+            }
+            var bgImage = new IconImageNode
+            {
+                IconId = iconId,
+                Size = new System.Numerics.Vector2(bgSize, bgSize),
+                Position = ContentStartPosition + new System.Numerics.Vector2(currentX + (columnWidth - bgSize) / 2, ContentSize.Y - bgSize),
+                FitTexture = true,
+                Alpha = 0.2f,
+            };
+            AddNode(bgImage);
+            bgImageNodes.Add(bgImage);
+            originalIconIds[bgImage] = iconId;
+
+            // Gradient overlay (rotated)
+            var overlay = new SimpleNineGridNode
+            {
+                TexturePath = "ui/uld/ListItemA.tex",
+                TextureCoordinates = new System.Numerics.Vector2(0.0f, 0.0f),
+                TextureSize = new System.Numerics.Vector2(64.0f, 22.0f),
+                LeftOffset = 16,
+                RightOffset = 16,
+                TopOffset = 8,
+                BottomOffset = 8,
+                Size = new System.Numerics.Vector2(ContentSize.Y, columnWidth),
+                Position = ContentStartPosition + new System.Numerics.Vector2(currentX, ContentSize.Y),
+                MultiplyColor = new System.Numerics.Vector3(0, 0, 0),
+                Alpha = 1f,
+                RotationDegrees = -90f,
+            };
+            AddNode(overlay);
+            overlayNodes.Add(overlay);
+
+            // Content column
+            Plugin.Log.Debug($"Creating column for area: {area.AreaName} {area.AreaId}");
+            var columnNode = CreateAreaColumn(area, columnWidth, overlay, bgImage, useEasterEgg);
             columnsNode.AddNode(columnNode);
+
+            currentX += columnWidth + ColumnSpacing;
         }
 
         rootNode.AddNode(columnsNode);
         AddNode(rootNode);
     }
 
-    private VerticalListNode CreateAreaColumn(Area area, float width)
+    private VerticalListNode CreateAreaColumn(Area area, float width, SimpleNineGridNode overlay, IconImageNode bgImage, bool useEasterEgg)
     {
         var columnNode = new VerticalListNode
         {
@@ -115,17 +188,38 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
             Anchor = VerticalListAnchor.Top,
         };
 
-        // Area name as button (clickable)
-        var areaButton = new TextButtonNode
+        // Enable clickable cursor and register events on collision node
+        columnNode.CollisionNode.ShowClickableCursor = true;
+        columnNode.CollisionNode.AddEvent(AtkEventType.MouseClick, () => OnAreaClicked(area.AreaName));
+        columnNode.CollisionNode.AddEvent(AtkEventType.MouseOver, () =>
+        {
+            overlay.MultiplyColor = new System.Numerics.Vector3(16, 16, 16); // Lighten on hover
+            bgImage.Alpha = 0.4f; // Increase background alpha on hover
+        });
+        columnNode.CollisionNode.AddEvent(AtkEventType.MouseOut, () =>
+        {
+            overlay.MultiplyColor = new System.Numerics.Vector3(0, 0, 0); // Back to normal
+            bgImage.Alpha = 0.2f; // Reset background alpha
+        });
+
+        // Area name as header
+        var displayName = useEasterEgg && area.AreaName.Length > 0
+            ? area.AreaName[..^1] + "狸"
+            : area.AreaName;
+        var areaHeader = new TextNode
         {
             Width = width,
             Height = 32f,
-            String = area.AreaName,
-            OnClick = () => OnAreaClicked(area.AreaName),
+            String = displayName,
+            AlignmentType = AlignmentType.Center,
+            FontSize = 14,
+            TextColor = ColorHelper.GetColor(2),
+            TextOutlineColor = ColorHelper.GetColor(7),
         };
-        columnNode.AddNode(areaButton);
+        columnNode.AddNode(areaHeader);
+        columnNode.AddNode(new HorizontalLineNode { Height = 2.0f, Width = width, ScaleX = 0.8f, OriginX = width / 2f });
 
-        // Server list as text (non-clickable)
+        // Server list as text
         foreach (var group in area.GroupList)
         {
             var serverText = new TextNode
@@ -135,7 +229,7 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
                 String = group.GroupName,
                 AlignmentType = AlignmentType.Center,
                 FontSize = 12,
-                TextColor = ColorHelper.GetColor(3),
+                TextColor = ColorHelper.GetColor(8),
                 TextOutlineColor = ColorHelper.GetColor(7),
             };
             columnNode.AddNode(serverText);
@@ -178,6 +272,12 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
 
     public static Task Show(Plugin plugin)
     {
+        // If window is already open, just return (window is already visible)
+        if (CurrentInstance != null && CurrentInstance.IsOpen)
+        {
+            return Task.CompletedTask;
+        }
+
         pendingPlugin = plugin;
 
         var addon = new DcGroupSelectorAddon
@@ -186,6 +286,7 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
             Title = "大区选择",
         };
 
+        CurrentInstance = addon;
         addon.Open();
 
         return Task.CompletedTask;
@@ -193,6 +294,7 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
 
     public new void Dispose()
     {
+        CurrentInstance = null;
         Close();
     }
 }
