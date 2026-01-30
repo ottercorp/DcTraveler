@@ -12,6 +12,7 @@ using DcTraveler.Windows;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using KamiToolKit;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 using System;
@@ -47,9 +48,8 @@ public sealed class Plugin : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("DcTraveler");
     //private ConfigWindow ConfigWindow { get; init; }
     //private MainWindow MainWindow { get; init; }
-    private WorldSelectorWindows WorldSelectorWindows { get; init; }
     //private WaitingWindow WaitingWindow { get; init; }
-    private DcGroupSelctorWindow DcGroupSelctorWindow { get; init; }
+    private WorldSelectorAddon NativeWorldSelector { get; init; }
 
     internal DcTravelClient? DcTravelClient = null;
     internal static SdoArea[] SdoAreas = null!;
@@ -61,16 +61,21 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         SetupFont();
 
+        // Initialize KamiToolKit
+        KamiToolKitLibrary.Initialize(PluginInterface, "");
+
         //MainWindow = new MainWindow(this);
         //WindowSystem.AddWindow(MainWindow);
 
-        WorldSelectorWindows = new WorldSelectorWindows();
         //WaitingWindow = new WaitingWindow();
-        DcGroupSelctorWindow = new DcGroupSelctorWindow(this);
+        NativeWorldSelector = new WorldSelectorAddon
+        {
+            InternalName = "DcTravelerWorldSelector",
+            Title = "超域传送",
+            Size = new System.Numerics.Vector2(320, 370),
+        };
 
-        WindowSystem.AddWindow(WorldSelectorWindows);
         //WindowSystem.AddWindow(WaitingWindow);
-        WindowSystem.AddWindow(DcGroupSelctorWindow);
         PluginInterface.UiBuilder.Draw += DrawUI;
         this.TitleScreenButton = new TitleScreenButton(DalamudPluginInterface, TitleScreenMenu, TextureProvider, this);
 
@@ -113,7 +118,7 @@ public sealed class Plugin : IDalamudPlugin
 
     internal void OpenDcSelectWindow()
     {
-        DcGroupSelctorWindow.Open();
+        DcGroupSelectorAddon.Show(this);
     }
 
     private unsafe void OnContextMenuOpened(IMenuOpenedArgs args)
@@ -163,12 +168,12 @@ public sealed class Plugin : IDalamudPlugin
 
         if (InitException != null)
         {
-            MessageBoxWindow.Show(WindowSystem, title, InitException!);
+            MessageBoxAddon.Show(title, InitException!);
             return;
         }
         if (DcTravelClient == null || !DcTravelClient.IsValid)
         {
-            MessageBoxWindow.Show(WindowSystem, title, "无法连接超域API服务,请检查XL。");
+            MessageBoxAddon.Show(title, "无法连接超域API服务,请检查XL。");
             Log.Error("Can not connect to XL");
             return;
         }
@@ -192,7 +197,7 @@ public sealed class Plugin : IDalamudPlugin
                     var targetGroup = DcTravelClient.CachedAreas.First(x => x.AreaName == targetDcGroupName).GroupList.First(x => x.GroupCode == targetWorld.InternalName.ToString());
                     if (needSelectCurrentWorld)
                     {
-                        var selectWorld = await WorldSelectorWindows.OpenTravelWindow(true, false, true, DcTravelClient.CachedAreas, sourceGroup:currentGroup,targetGroup:targetGroup);
+                        var selectWorld = await NativeWorldSelector.OpenTravelWindow(true, false, true, DcTravelClient.CachedAreas, sourceGroup: currentGroup, targetGroup: targetGroup);
                         if (selectWorld == null)
                         {
                             return;
@@ -211,9 +216,9 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     //Log.Information($"{currentGroup.AreaId} {currentGroup.GroupName} {currentDcGroupName}");
                     var areas = await DcTravelClient.QueryGroupListTravelTarget(currentGroup.AreaId, -1);
-                    var selectWorld = await WorldSelectorWindows.OpenTravelWindow(false, true, false, in areas, sourceGroup:currentGroup);
+                    var selectWorld = await NativeWorldSelector.OpenTravelWindow(false, true, false, in areas, sourceGroup: currentGroup);
                     var chara = new Character() { ContentId = contentId.ToString(), Name = currentCharacterName };
-                    if (selectWorld.Target is null)
+                    if (selectWorld?.Target is null)
                     {
                         Log.Info($"没选目标");
                         return;
@@ -227,8 +232,8 @@ public sealed class Plugin : IDalamudPlugin
                     //    estimatedTime = (waitTime / 30 + 1) * 30;
                     //}
                     //Log.Info($"预计花费时间:{estimatedTime} 分钟");
-                    //var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"预计时间:{estimatedTime} 分钟内", MessageBoxType.YesNo);
-                    var costMsgBox = await MessageBoxWindow.Show(WindowSystem, title, $"是否进行跨域传送?", MessageBoxType.YesNo);
+                    //var costMsgBox = await MessageBoxAddon.Show(title, $"预计时间:{estimatedTime} 分钟内", MessageBoxType.YesNo);
+                    var costMsgBox = await MessageBoxAddon.Show("确认超域传送", $"{currentDcGroupName} - {currentWorld.Name} 》 {targetDcGroupName} - {selectWorld.Target.GroupName}", MessageBoxType.YesNo);
                     if (costMsgBox == MessageBoxResult.Yes)
                     {
                         orderId = await DcTravelClient.TravelOrder(selectWorld.Target, currentGroup, chara);
@@ -249,7 +254,7 @@ public sealed class Plugin : IDalamudPlugin
             }
             catch (Exception ex)
             {
-                await MessageBoxWindow.Show(WindowSystem, title, $"{title}失败:\n{ex}", showWebsite: true);
+                await MessageBoxAddon.Show(title, $"{title}失败:\n\n{ex.Message}", showWebsite: true);
                 Log.Error(ex.ToString());
             }
             finally
@@ -262,6 +267,7 @@ public sealed class Plugin : IDalamudPlugin
     public async Task WaitingForOrder(string orderId, int estimatedTime)
     {
         OrderSatus status;
+        var retryCount = 0;
         while (true)
         {
             GameFunctions.ResetTitleMovieTimer();
@@ -274,7 +280,7 @@ public sealed class Plugin : IDalamudPlugin
             }
             else if (status.Status == 2)
             {
-                var confirmResult = await MessageBoxWindow.Show(WindowSystem, "传送确认", "请确认传送", MessageBoxType.OkCancel);
+                var confirmResult = await MessageBoxAddon.Show("传送确认", "请确认传送", MessageBoxType.OkCancel);
                 await DcTravelClient.MigrationConfirmOrder(orderId, confirmResult == MessageBoxResult.Ok);
                 if (confirmResult != MessageBoxResult.Ok)
                 {
@@ -335,7 +341,8 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
         ContextMenu.OnMenuOpened -= this.OnContextMenuOpened;
         this.TitleScreenButton?.Dispose();
-        WorldSelectorWindows.Dispose();
+        NativeWorldSelector.Dispose();
+        KamiToolKitLibrary.Cleanup();
         //MainWindow?.Dispose();
     }
 
