@@ -142,7 +142,9 @@ namespace DcTraveler
             var rpcResponse = JsonSerializer.Deserialize<RpcResponse>(content);
             if (rpcResponse?.Error != null)
             {
-                throw new Exception(rpcResponse.Error);
+                Log.Error(ExtractErrorMessage(rpcResponse.Error));
+                var errorMessage = ExtractErrorMessage(rpcResponse.Error);
+                throw new Exception(errorMessage);
             }
             if (rpcResponse!.Result is JsonElement element)
             {
@@ -205,6 +207,31 @@ namespace DcTraveler
         public async Task MigrationConfirmOrder(string orderId, bool confirmed)
         {
             await RequestApi<string>(new object[] { orderId, confirmed });
+        }
+
+        private static string ExtractErrorMessage(string errorString)
+        {
+            // Extract message from error string format:
+            // "XIVLauncher.Common.Game.DcTraveleApiException: API call failed with return code: -10600032, message: 申请传送目标区服用户数量较多，请您稍晚再次尝试！"
+            var messagePrefix = "message: ";
+            var messageIndex = errorString.IndexOf(messagePrefix);
+
+            if (messageIndex == -1)
+            {
+                // If no "message:" found, return the original error string
+                return errorString;
+            }
+
+            var startIndex = messageIndex + messagePrefix.Length;
+            var endIndex = errorString.IndexOf('\n', startIndex);
+
+            if (endIndex == -1)
+            {
+                // If no newline found, take everything after "message: "
+                return errorString.Substring(startIndex).Trim();
+            }
+
+            return errorString.Substring(startIndex, endIndex - startIndex).Trim();
         }
     }
 }
