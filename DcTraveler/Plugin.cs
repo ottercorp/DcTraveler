@@ -250,7 +250,10 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 LobbyDKT.Open();
                 await WaitingForOrder(orderId, estimatedTime);
-                UIGlobals.PlaySoundEffect(67);
+                unsafe
+                {
+                    UIGlobals.PlaySoundEffect(67);
+                }
                 GameFunctions.RequestVibrationWhenReady();
                 await SelectDcAndLogin(targetDcGroupName);
             }
