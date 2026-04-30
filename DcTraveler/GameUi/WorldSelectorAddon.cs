@@ -47,7 +47,7 @@ public unsafe class WorldSelectorAddon : NativeAddon, IDisposable
     private const float ListHeight = 250f;
     private const float ItemHeight = 24f;
 
-    protected override void OnSetup(AtkUnitBase* addon)
+    protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
         // 清除旧的节点引用（窗口重新打开时）
         titleLabel = null;

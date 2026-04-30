@@ -84,7 +84,7 @@ public unsafe class MessageBoxAddon : NativeAddon, IDisposable
     private const float ButtonWidth = 100f;
     private const float ButtonHeight = 28f;
 
-    protected override void OnSetup(AtkUnitBase* addon)
+    protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
         // 根据是否显示网站按钮动态设置窗口高度
         var windowHeight = pendingShowWebsite ? 200f : 150f;

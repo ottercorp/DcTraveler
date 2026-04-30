@@ -22,7 +22,6 @@ using System.Text;
 using System.Windows.Markup;
 using static FFXIVClientStructs.FFXIV.Client.UI.AddonRelicNoteBook;
 using Task = System.Threading.Tasks.Task;
-using ValueType = FFXIVClientStructs.FFXIV.Component.GUI.ValueType;
 namespace DcTraveler;
 
 public sealed class Plugin : IDalamudPlugin
@@ -250,7 +249,10 @@ public sealed class Plugin : IDalamudPlugin
                 }
                 LobbyDKT.Open();
                 await WaitingForOrder(orderId, estimatedTime);
-                UIGlobals.PlaySoundEffect(67);
+                unsafe
+                {
+                    UIGlobals.PlaySoundEffect(67);
+                }
                 GameFunctions.RequestVibrationWhenReady();
                 await SelectDcAndLogin(targetDcGroupName);
             }

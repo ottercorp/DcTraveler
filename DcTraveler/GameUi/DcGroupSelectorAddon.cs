@@ -7,6 +7,7 @@ using KamiToolKit;
 using KamiToolKit.Classes;
 using KamiToolKit.Enums;
 using KamiToolKit.Nodes;
+using KamiToolKit.Premade.Node.Simple;
 using Serilog;
 
 namespace DcTraveler.GameUi;
@@ -26,7 +27,7 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
     private readonly List<IconImageNode> bgImageNodes = new();
     private readonly Dictionary<IconImageNode, uint> originalIconIds = new();
 
-    protected override void OnSetup(AtkUnitBase* addon)
+    protected override void OnSetup(AtkUnitBase* addon, Span<AtkValue> atkValueSpan)
     {
         SetWindowSize(WindowWidth, WindowHeight);
 
