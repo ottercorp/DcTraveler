@@ -71,6 +71,10 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
             return;
         }
 
+        // On the title screen: hide _TitleMenu so it never overlaps or gets
+        // mis-clicked while the selector is open. Restored in OnHide/OnFinalize.
+        SetTitleMenuVisible(false);
+
         // Check if areas loaded
         if (areas == null || areas.Count == 0)
         {
@@ -263,12 +267,30 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
 
     protected override void OnHide(AtkUnitBase* addon)
     {
+        SetTitleMenuVisible(true);
         pendingPlugin = null;
     }
 
     protected override void OnFinalize(AtkUnitBase* addon)
     {
+        SetTitleMenuVisible(true);
         rootNode?.Dispose();
+    }
+
+    /// <summary>
+    /// Toggle the game's _TitleMenu addon visibility so it never coexists with
+    /// this selector. Flips the addon root-node visibility only (no native hide
+    /// callbacks/animation fired), which is fully reversible and also blocks the
+    /// menu's buttons from being hit-tested while hidden.
+    /// </summary>
+    private static void SetTitleMenuVisible(bool visible)
+    {
+        var titleMenuPtr = Plugin.GameGui.GetAddonByName("_TitleMenu", 1).Address;
+        if (titleMenuPtr == nint.Zero) return;
+
+        var titleMenu = (AtkUnitBase*)titleMenuPtr;
+        if (titleMenu->RootNode != null)
+            titleMenu->RootNode->ToggleVisibility(visible);
     }
 
     public static Task Show(Plugin plugin)

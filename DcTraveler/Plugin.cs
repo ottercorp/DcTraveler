@@ -55,7 +55,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static IFontHandle Font { get; private set; } = null!;
     internal string? InitException { get; private set; }
     internal TitleScreenButton TitleScreenButton { get; private set; }
-    internal TitleMenuButtonInjector TitleMenuButtonInjector { get; private set; }
+    internal TitleMenuFix TitleMenuFix { get; private set; }
     public unsafe Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -78,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         //WindowSystem.AddWindow(WaitingWindow);
         PluginInterface.UiBuilder.Draw += DrawUI;
         this.TitleScreenButton = new TitleScreenButton(DalamudPluginInterface, TitleScreenMenu, TextureProvider, this);
-        this.TitleMenuButtonInjector = new TitleMenuButtonInjector(this);
+        this.TitleMenuFix = new TitleMenuFix(this);
 
         ContextMenu.OnMenuOpened += this.OnContextMenuOpened;
         var port = 0;
@@ -345,7 +345,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
         ContextMenu.OnMenuOpened -= this.OnContextMenuOpened;
         this.TitleScreenButton?.Dispose();
-        this.TitleMenuButtonInjector?.Dispose();
+        this.TitleMenuFix?.Dispose();
         NativeWorldSelector.Dispose();
         KamiToolKitLibrary.Cleanup();
         //MainWindow?.Dispose();
