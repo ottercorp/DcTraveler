@@ -100,7 +100,7 @@ namespace DcTraveler
         public static void ChangeDevTestSid(string sid)
         {
             var agentLobby = AgentLobby.Instance();
-            agentLobby->UnkUtf8Strings[0].SetString(sid);
+            agentLobby->GameSession.SetString(sid);
             Log.Information("Refresh Dev.TestSid");
         }
         public static void ChangeGameServer(string lobbyHost, string saveDataHost, string gmServerHost)
