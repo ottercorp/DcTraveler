@@ -113,18 +113,32 @@ namespace DcTraveler
     {
         private string apiUrl = string.Empty;
         private HttpClient httpClient { get; set; }
-        public static List<Area> CachedAreas { get; set; } = new List<Area>();
-        public static bool IsValid = false;
-        public DcTravelClient(int port, bool useEncrypt = true)
+        public List<Area> CachedAreas { get; private set; } = new List<Area>();
+        public bool IsValid { get; private set; }
+        public DcTravelClient(int port, bool queryTravelAreas = true, bool useEncrypt = true)
         {
+            if (port <= 0)
+                throw new ArgumentOutOfRangeException(nameof(port));
+
             this.apiUrl = $"http://127.0.0.1:{port}/dctravel/";
             Log.Information($"DcTravelClient API URL:{this.apiUrl}");
             this.httpClient = new HttpClient();
-            Task.Run(() =>
+
+            if (queryTravelAreas)
+                _ = LoadTravelAreasAsync();
+        }
+
+        private async Task LoadTravelAreasAsync()
+        {
+            try
             {
-                CachedAreas = this.QueryGroupListTravelSource().GetAwaiter().GetResult();
+                CachedAreas = await this.QueryGroupListTravelSource();
                 IsValid = true;
-            });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to load DcTravel area list");
+            }
         }
 
         //Response:{"Result":"GM017624122025063000313700001006","Error":null}

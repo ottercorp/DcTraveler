@@ -1,7 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
 using Dalamud;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace DcTraveler.GameUi;
 
@@ -35,8 +37,13 @@ namespace DcTraveler.GameUi;
 ///   UpdateButtonLabels patch site @ 0x141176604 (+6), OnRefresh @ 0x141175F60,
 ///   ReceiveEvent @ 0x141176240.
 /// </summary>
-internal sealed class TitleMenuFix : IDisposable
+internal unsafe sealed class TitleMenuFix : IDisposable
 {
+    private const uint TitleMenuButtonContainerNodeId = 3;
+    private const uint DcSelectButtonNodeId            = 5;
+    private const int  ComponentNodeType               = 1001;
+    private const string DcSelectButtonLabel            = "大区";
+
     // Anchor on the surrounding bytes; flip the immediate at offset 6.
     //   0x141176604: F6 D8           neg al
     //   0x141176606: 1B D2           sbb edx, edx
@@ -118,14 +125,82 @@ internal sealed class TitleMenuFix : IDisposable
     private byte OnRefreshDetour(IntPtr addon, int valueCount, IntPtr values)
     {
         if (valueCount <= 0 || values == IntPtr.Zero)
-            return onRefreshHook!.Original(addon, valueCount, values);
+        {
+            var ret = onRefreshHook!.Original(addon, valueCount, values);
+            ApplyDcSelectButtonIcon((AtkUnitBase*)addon);
+            return ret;
+        }
 
         var uintAddr = values + AtkValueUIntOffset;
         var original = (uint)Marshal.ReadInt32(uintAddr);
         Marshal.WriteInt32(uintAddr, (int)(original & ~DisableDCSelectBit));
-        var ret = onRefreshHook!.Original(addon, valueCount, values);
-        Marshal.WriteInt32(uintAddr, (int)original);
-        return ret;
+        try
+        {
+            var ret = onRefreshHook!.Original(addon, valueCount, values);
+            ApplyDcSelectButtonIcon((AtkUnitBase*)addon);
+            return ret;
+        }
+        finally
+        {
+            Marshal.WriteInt32(uintAddr, (int)original);
+        }
+    }
+
+    private static void ApplyDcSelectButtonIcon(AtkUnitBase* addon)
+    {
+        if (addon == null) return;
+
+        var textNode = FindDcSelectButtonText(addon);
+        if (textNode == null) return;
+
+        var icon = ((char)Dalamud.Game.Text.SeIconChar.BoxedLetterD).ToString();
+
+        // Do not read and re-encode NodeText here: it contains SeString control
+        // payloads after the first update, which would accumulate on refresh.
+        // The CN native label is fixed and remains the game's default "大区".
+        var seString = new SeStringBuilder()
+            .AddUiForeground(539)
+            .Append(icon)
+            .AddUiForegroundOff()
+            .Append(" ")
+            .Append(DcSelectButtonLabel)
+            .Build();
+        textNode->SetText(seString.Encode());
+    }
+
+    private static AtkTextNode* FindDcSelectButtonText(AtkUnitBase* addon)
+    {
+        var containerNode = addon->GetNodeById(TitleMenuButtonContainerNodeId);
+        if (containerNode == null) return null;
+
+        var currentNode = containerNode->ChildNode;
+        while (currentNode != null)
+        {
+            if (currentNode->NodeId == DcSelectButtonNodeId &&
+                currentNode->Type == unchecked((NodeType)ComponentNodeType))
+            {
+                var componentNode = (AtkComponentNode*)currentNode;
+                if (componentNode->Component == null) return null;
+
+                var button = (AtkComponentButton*)componentNode->Component;
+                var uldManager = &button->AtkComponentBase.UldManager;
+                for (uint i = 0; i < uldManager->NodeListCount; i++)
+                {
+                    var childNode = uldManager->NodeList[i];
+                    if (childNode == null || childNode->Type != NodeType.Res || childNode->ChildNode == null)
+                        continue;
+
+                    if (childNode->ChildNode->Type == NodeType.Text)
+                        return (AtkTextNode*)childNode->ChildNode;
+                }
+
+                return null;
+            }
+
+            currentNode = currentNode->PrevSiblingNode;
+        }
+
+        return null;
     }
 
     private void InstallReceiveEventHook()

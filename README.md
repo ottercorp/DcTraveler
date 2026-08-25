@@ -1,11 +1,12 @@
 # FFXIV国服游戏内跨大区插件
 ## 使用方法
-- XL内打开Dalamud选项卡的`启用跨域传送`和`启用Dalamud`
+- XL内打开Dalamud选项卡的`启用Dalamud`；如果要使用角色选择界面的超域传送/返回，再打开`启用超域传送`
 ![6360a0e33214c241f1c9f2bb9bbde1c4](https://github.com/user-attachments/assets/d13f1213-3c2d-4d78-8e70-9318956b40a0)
 ![6d455ff821e5c45ea5610bcc19182458](https://github.com/user-attachments/assets/e540b371-86d1-49b7-84bb-953e34d604a0)
 - 进入游戏后打开插件管理器，安装DcTraveler，现已合入国服主库，不需额外添加第三方库地址
 - 在角色选择界面右键角色，即可进行跨域传送/返回
 - 在标题画面将鼠标移至左上角，可以切换当前大区
+- 大区选择使用独立的登录通道，不依赖超域传送接口；服务器列表从国服服务器状态接口独立读取，超域接口维护时仍可切换大区并重新登录
 ![512a6e71aaa70b5767f1ab8b73ceac62](https://github.com/user-attachments/assets/8981be4d-768e-45fb-b01a-a68f5a482317)
 ## 功能原理说明
 本功能通过模拟正常浏览器登录行为，登录官网超域传送页面，获取临时会话凭证（Cookie），模拟网页请求，从而进行超越传送/返回。

@@ -5,7 +5,7 @@
         <Version>2.0.3.0</Version>
         <Author>Loskh(OtterCorp)</Author>
         <Punchline>像国际服一样跨大区</Punchline>
-        <Description>在选择角色界面,右键角色选择超域传送或返回。需要使用XL启动,并在设置中启动超域传送。(WeGame端暂不支持)</Description>
+        <Description>在选择角色界面,右键角色选择超域传送或返回；在标题画面切换登录大区。超域传送需要使用XL启动并在设置中启用超域传送，大区选择不依赖超域传送。(WeGame端暂不支持)</Description>
         <PackageProjectUrl>https://github.com/goatcorp/SamplePlugin</PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
         <IsPackable>false</IsPackable>

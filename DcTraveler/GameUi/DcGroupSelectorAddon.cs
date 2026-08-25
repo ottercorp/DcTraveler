@@ -42,7 +42,25 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
         );
         SetWindowPosition(centerPosition);
 
-        areas = DcTravelClient.CachedAreas;
+        if (pendingPlugin?.DcTravelClient?.CachedAreas is { Count: > 0 } cachedAreas)
+        {
+            areas = cachedAreas;
+        }
+        else if (pendingPlugin?.ServerStatusAreas is { Count: > 0 } serverStatusAreas)
+        {
+            areas = serverStatusAreas;
+        }
+        else
+        {
+            areas = Plugin.SdoAreas
+                .Select(area => new Area
+                {
+                    AreaId = int.TryParse(area.Areaid, out var areaId) ? areaId : 0,
+                    AreaName = area.AreaName,
+                    GroupList = new List<Group>(),
+                })
+                .ToList();
+        }
 
         rootNode = new VerticalListNode
         {
@@ -224,20 +242,36 @@ public unsafe class DcGroupSelectorAddon : NativeAddon, IDisposable
         columnNode.AddNode(areaHeader);
         columnNode.AddNode(new HorizontalLineNode { Height = 2.0f, Width = width, ScaleX = 0.8f, OriginX = width / 2f });
 
-        // Server list as text
-        foreach (var group in area.GroupList)
+        if (area.GroupList.Count == 0)
         {
-            var serverText = new TextNode
+            var selectHint = new TextNode
             {
                 Width = width,
                 Height = RowHeight,
-                String = group.GroupName,
+                String = "点击切换登录大区",
                 AlignmentType = AlignmentType.Center,
                 FontSize = 12,
                 TextColor = ColorHelper.GetColor(8),
                 TextOutlineColor = ColorHelper.GetColor(7),
             };
-            columnNode.AddNode(serverText);
+            columnNode.AddNode(selectHint);
+        }
+        else
+        {
+            foreach (var group in area.GroupList)
+            {
+                var serverText = new TextNode
+                {
+                    Width = width,
+                    Height = RowHeight,
+                    String = group.GroupName,
+                    AlignmentType = AlignmentType.Center,
+                    FontSize = 12,
+                    TextColor = ColorHelper.GetColor(8),
+                    TextOutlineColor = ColorHelper.GetColor(7),
+                };
+                columnNode.AddNode(serverText);
+            }
         }
 
         return columnNode;

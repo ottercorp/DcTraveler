@@ -16,6 +16,7 @@ using KamiToolKit;
 using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -51,9 +52,11 @@ public sealed class Plugin : IDalamudPlugin
     private WorldSelectorAddon NativeWorldSelector { get; init; }
 
     internal DcTravelClient? DcTravelClient = null;
-    internal static SdoArea[] SdoAreas = null!;
+    internal DcTravelClient? DcLoginClient = null;
+    internal static SdoArea[] SdoAreas = Array.Empty<SdoArea>();
+    internal List<Area> ServerStatusAreas { get; private set; } = new();
+    private Task serverStatusTask = Task.CompletedTask;
     internal static IFontHandle Font { get; private set; } = null!;
-    internal string? InitException { get; private set; }
     internal TitleScreenButton TitleScreenButton { get; private set; }
     internal TitleMenuFix TitleMenuFix { get; private set; }
     public unsafe Plugin()
@@ -81,24 +84,59 @@ public sealed class Plugin : IDalamudPlugin
         this.TitleMenuFix = new TitleMenuFix(this);
 
         ContextMenu.OnMenuOpened += this.OnContextMenuOpened;
-        var port = 0;
         try
         {
-            port = int.Parse(GameFunctions.GetGameArgument("XL.DcTraveler"));
-            Log.Information($"Use port:{port}");
             var hostInfoString = GameFunctions.GetGameArgument("XL.LobbyHosts");
             byte[] decodedBytes = Convert.FromBase64String(hostInfoString);
             string decodedJsonString = Encoding.UTF8.GetString(decodedBytes);
-            SdoAreas = JsonConvert.DeserializeObject<SdoArea[]>(decodedJsonString);
-            Log.Information($"Got {SdoAreas!.Length} area hosts");
-            DcTravelClient = new DcTravelClient(port);
+            SdoAreas = JsonConvert.DeserializeObject<SdoArea[]>(decodedJsonString) ?? Array.Empty<SdoArea>();
+            Log.Information($"Got {SdoAreas.Length} area hosts");
         }
         catch (Exception ex)
         {
-            InitException = ex.Message;
             Log.Error(ex.ToString());
         }
+
+        serverStatusTask = LoadServerStatusAreasAsync();
+
+        try
+        {
+            var port = int.Parse(GameFunctions.GetGameArgument("XL.DcLogin"));
+            DcLoginClient = new DcTravelClient(port, queryTravelAreas: false);
+            Log.Information($"Use DC login port:{port}");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"DC login API is unavailable: {ex.Message}");
+        }
+
+        try
+        {
+            var port = int.Parse(GameFunctions.GetGameArgument("XL.DcTraveler"));
+            DcTravelClient = new DcTravelClient(port);
+            Log.Information($"Use DC travel port:{port}");
+        }
+        catch (Exception ex)
+        {
+            Log.Information($"DC travel API is unavailable: {ex.Message}");
+        }
+
+        // Compatibility with older XL builds that only provide the travel port.
+        DcLoginClient ??= DcTravelClient;
         //MainWindow.IsOpen = true;
+    }
+
+    private async Task LoadServerStatusAreasAsync()
+    {
+        try
+        {
+            ServerStatusAreas = await ServerStatusClient.QueryAsync(SdoAreas);
+            Log.Information($"Got {ServerStatusAreas.Count} server status areas");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load independent server status list");
+        }
     }
 
     public static void SetupFont()
@@ -119,7 +157,19 @@ public sealed class Plugin : IDalamudPlugin
 
     internal void OpenDcSelectWindow()
     {
-        DcGroupSelectorAddon.Show(this);
+        Plugin.Framework.RunOnTick(async () =>
+        {
+            try
+            {
+                await serverStatusTask;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed while waiting for server status list");
+            }
+
+            await DcGroupSelectorAddon.Show(this);
+        });
     }
 
     private unsafe void OnContextMenuOpened(IMenuOpenedArgs args)
@@ -167,11 +217,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         var title = isBack ? "超域返回" : "超域传送";
 
-        if (InitException != null)
-        {
-            MessageBoxAddon.Show(title, InitException!);
-            return;
-        }
         if (DcTravelClient == null || !DcTravelClient.IsValid)
         {
             MessageBoxAddon.Show(title, "无法连接超域API服务,请检查XL。");
@@ -327,7 +372,10 @@ public sealed class Plugin : IDalamudPlugin
 
     public async Task SelectDcAndLogin(string name)
     {
-        var newTicket = await DcTravelClient!.RefreshGameSessionId();
+        if (DcLoginClient == null)
+            throw new Exception("无法连接大区登录API服务，请确认使用支持大区选择的XL启动游戏");
+
+        var newTicket = await DcLoginClient.RefreshGameSessionId();
         ChangeToSdoArea(name);
         GameFunctions.ChangeDevTestSid(newTicket);
         GameFunctions.LoginInGame();
@@ -335,8 +383,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public void ChangeToSdoArea(string groupName)
     {
-        var targetArea = SdoAreas!.FirstOrDefault(x => x.AreaName == groupName);
-        GameFunctions.ChangeGameServer(targetArea!.AreaLobby, targetArea!.AreaConfigUpload, targetArea!.AreaGm);
+        var targetArea = SdoAreas.FirstOrDefault(x => x.AreaName == groupName);
+        if (targetArea == null)
+            throw new Exception($"未找到大区: {groupName}");
+
+        GameFunctions.ChangeGameServer(targetArea.AreaLobby, targetArea.AreaConfigUpload, targetArea.AreaGm);
         GameFunctions.RefreshGameServer();
     }
 
